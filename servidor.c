@@ -1,48 +1,54 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
 
-#define BUFFER_SIZE 1024
-
-void converter_para_maiusculas(char *str) {
+void LetrasEmMaiusculo(char *str) {
     for (int i = 0; str[i]; i++) {
         str[i] = toupper(str[i]);
     }
 }
 
-int main(int argc, char *argv[]) {
-    if (argc != 3) {
-        fprintf(stderr, "Uso: %s <FIFO cliente_para_servidor> <FIFO servidor_para_cliente>\n", argv[0]);
-        exit(1);
+int main() {
+    int cs_fd, sc_fd;
+    char buffer[96];
+
+    if (access("FIFO_CS", F_OK) == 0) {
+        unlink("FIFO_CS");
     }
+    if (mkfifo("FIFO_CS", S_IWUSR | S_IRUSR) != 0){ //Cria FIFO 1
+        puts("Erro ao criar a FIFO 1, poxa!");
+        return -1;
+    }
+    puts("FIFO 1 criada com sucesso, oba!");
 
-    const char* fifo_cliente_para_servidor = argv[1];
-    const char* fifo_servidor_para_cliente = argv[2];
-
-    mkfifo(fifo_cliente_para_servidor, 0666);
-    mkfifo(fifo_servidor_para_cliente, 0666);
-
-    char buffer[BUFFER_SIZE];
-    int fd_cliente_para_servidor, fd_servidor_para_cliente;
+    if (access("FIFO_SC", F_OK) == 0) {
+        unlink("FIFO_SC");
+    }
+    
+    if (mkfifo("FIFO_SC", S_IWUSR | S_IRUSR) != 0){ //Cria FIFO 2
+        puts("Erro ao criar a FIFO 2, poxa!");
+        return -1;
+    }
+    puts("FIFO 2 criada com sucesso, oba!");
 
     while (1) {
-        fd_cliente_para_servidor = open(fifo_cliente_para_servidor, O_RDONLY);
-        read(fd_cliente_para_servidor, buffer, BUFFER_SIZE);
-        close(fd_cliente_para_servidor);
+        cs_fd = open("FIFO_CS", O_RDONLY);
+        read(cs_fd, buffer, sizeof(buffer));
+        close(cs_fd);
 
-        printf("Servidor recebeu: %s\n", buffer);
+        LetrasEmMaiusculo(buffer);
 
-        converter_para_maiusculas(buffer);
-
-        fd_servidor_para_cliente = open(fifo_servidor_para_cliente, O_WRONLY);
-        write(fd_servidor_para_cliente, buffer, strlen(buffer) + 1);
-        close(fd_servidor_para_cliente);
-
-        printf("Servidor enviou: %s\n", buffer);
+        sc_fd = open("FIFO_SC", O_WRONLY);
+        write(sc_fd, buffer, strlen(buffer) + 1);
+        close(sc_fd);
     }
+
+    unlink("FIFO_CS");
+    unlink("FIFO_SC");
 
     return 0;
 }
